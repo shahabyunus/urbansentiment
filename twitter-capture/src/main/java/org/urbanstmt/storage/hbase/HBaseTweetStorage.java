@@ -9,7 +9,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
-import org.urbanstmt.exception.TweetStorageException;
+import org.urbanstmt.exception.twitter.TweetStorageException;
 import org.urbanstmt.model.twitter.TweetVO;
 import org.urbanstmt.storage.TweetStorage;
 import org.urbanstmt.util.ConstantsAndEnums.DataDomainType;

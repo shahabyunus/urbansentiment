@@ -9,6 +9,7 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.Text;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.mortbay.log.Log;
 import org.urbanstmt.util.ConstantsAndEnums;
@@ -52,13 +53,17 @@ public class TermsCountMap extends TableMapper<Text, Text> {
 				HBaseUtility.TWEET_LAT_COL);
 		
 		JSONObject j = null;
+		JSONArray lonLatJson = null;
 		if (textBytes != null && textBytes.length > 0) {
 			
 			j = new JSONObject();
 			j.put(ConstantsAndEnums.JSON_TEXT_FIELD, Bytes.toString(textBytes));
 			
 			if(lonBytes != null && latBytes != null)	{
-				j.put(ConstantsAndEnums.JSON_LONLAT_FIELD, Bytes.toFloat(lonBytes) + "," + Bytes.toFloat(latBytes));
+				lonLatJson = new JSONArray();
+				lonLatJson.add(Bytes.toFloat(lonBytes));
+				lonLatJson.add(Bytes.toFloat(latBytes));
+				j.put(ConstantsAndEnums.JSON_LONLAT_FIELD, lonLatJson.toJSONString());
 			}
 			
 			valueText.set(j.toString());

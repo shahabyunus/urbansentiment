@@ -1,6 +1,6 @@
 package org.urbanstmt.storage;
 
-import org.urbanstmt.exception.TweetStorageException;
+import org.urbanstmt.exception.twitter.TweetStorageException;
 import org.urbanstmt.model.twitter.TweetVO;
 
 public interface TweetStorage {

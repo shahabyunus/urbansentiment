@@ -14,7 +14,19 @@
     <scm>
         <connection>scm:git:git://github.com/shahabyunus/urbansentiment.git</connection>
     </scm>
-    
+    <build>
+    	<plugins>
+    		<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.1</version>
+				<configuration>
+					<source>1.7</source>
+					<target>1.7</target>
+				</configuration>
+			</plugin>
+    	</plugins>
+    </build>
     <repositories>
 		<repository>
 			<id>cloudera-repo-releases</id>

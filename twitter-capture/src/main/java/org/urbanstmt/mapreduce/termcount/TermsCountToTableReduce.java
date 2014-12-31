@@ -6,7 +6,6 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,9 +15,9 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.mapreduce.TableReducer;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Reducer;
-import org.codehaus.jackson.JsonParser;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.urbanstmt.util.ConstantsAndEnums;
@@ -39,7 +38,7 @@ public class TermsCountToTableReduce extends TableReducer<Text, Text, Text> {
 	private List<String> terms;
 	private Map<String, Float> termsScore;
 	private Table<String, String, Integer> termsCountMap;
-	private Table<String, String, StringBuilder> lonLatsMap;
+	private Table<String, String, List<JSONArray>> lonLatsMap;
 	private Text datetimeHour, termsFinalCount;
 	private long runTime;
 	private JSONParser parser = new JSONParser();
@@ -48,7 +47,7 @@ public class TermsCountToTableReduce extends TableReducer<Text, Text, Text> {
 	public void setup(TableReducer<Text, Text, Text>.Context context) {
 
 		termsCountMap = HashBasedTable.<String, String, Integer> create();
-		lonLatsMap = HashBasedTable.<String, String, StringBuilder> create();
+		lonLatsMap = HashBasedTable.<String, String, List<JSONArray>> create();
 
 		try {
 			URI[] paths = context.getCacheFiles();
@@ -67,8 +66,10 @@ public class TermsCountToTableReduce extends TableReducer<Text, Text, Text> {
 			LOG.error("Can't read terms files cached on hdfs, in reducer", e);
 			throw new IllegalStateException("Terms file read error", e);
 		}
-		
-		runTime = context.getConfiguration().getLong(ConstantsAndEnums.RUN_TIME_CONFIG, System.currentTimeMillis() / 1000);
+
+		runTime = context.getConfiguration().getLong(
+				ConstantsAndEnums.RUN_TIME_CONFIG,
+				System.currentTimeMillis() / 1000);
 
 	}
 
@@ -135,36 +136,34 @@ public class TermsCountToTableReduce extends TableReducer<Text, Text, Text> {
 
 			JSONObject object = null;
 			try {
-				object = (JSONObject)parser.parse(value.toString());
+				object = (JSONObject) parser.parse(value.toString());
 			} catch (ParseException e) {
-				LOG.error("Invalid json value="+value.toString());
+				LOG.error("Invalid json value=" + value.toString());
 				continue;
 			}
-			
-			String v = (String)object.get(ConstantsAndEnums.JSON_TEXT_FIELD);
-			if (v != null)
-			{
+
+			String v = (String) object.get(ConstantsAndEnums.JSON_TEXT_FIELD);
+			if (v != null) {
 				v = v.toLowerCase();
-			}
-			else
-			{
+			} else {
 				continue;
 			}
-			
-			String lonLat = (String)object.get(ConstantsAndEnums.JSON_LONLAT_FIELD);
+
+			JSONArray lonLatJson = (JSONArray) object
+					.get(ConstantsAndEnums.JSON_LONLAT_FIELD);
 
 			Map<String, Integer> termsCountPerDate = termsCountMap.rowMap()
 					.get(k);
-			
-			Map<String, StringBuilder> termsLonLatsPerDate = lonLatsMap.rowMap()
+
+			Map<String, List<JSONArray>> termsLonLatsPerDate = lonLatsMap.rowMap()
 					.get(k);
 
 			if (termsCountPerDate == null) {
 				termsCountPerDate = new HashMap<String, Integer>();
 			}
-			
+
 			if (termsLonLatsPerDate == null) {
-				termsLonLatsPerDate = new HashMap<String, StringBuilder>();
+				termsLonLatsPerDate = new HashMap<String, List<JSONArray>>();
 			}
 
 			for (String term : this.terms) {
@@ -178,16 +177,14 @@ public class TermsCountToTableReduce extends TableReducer<Text, Text, Text> {
 						term,
 						count += (StringUtils.countMatches(v,
 								term.toLowerCase())));
-				
-				if(!StringUtils.isEmpty(lonLat))
-				{
-					StringBuilder geos = termsLonLatsPerDate.get(term);
+
+				if (lonLatJson != null) {
+					List<JSONArray> geos = termsLonLatsPerDate.get(term);
 					if (geos == null) {
-						geos =  new StringBuilder(lonLat);
-					}	else	{
-						geos.append(":").append(lonLat);
+						geos = new ArrayList<JSONArray>();
 					}
-					
+
+					geos.add(lonLatJson);
 					lonLatsMap.put(k, term, geos);
 				}
 			}
@@ -214,25 +211,22 @@ public class TermsCountToTableReduce extends TableReducer<Text, Text, Text> {
 					score = 1f;
 				}
 
-				byte[] rowKey = getPartialRowKey(k, t,
-						AnalysisType.TERMS_COUNT);
+				byte[] rowKey = getRowKey(k, t, AnalysisType.TERMS_COUNT);
 				Put p = new Put(rowKey);
 				p.add(HBaseUtility.ANALYSIS_TC_COL_FAMILY,
 						HBaseUtility.TERM_COUNT_SCORE_COL,
 						Bytes.toBytes((score * (c == null ? 0 : c))));
-				
+
 				p.add(HBaseUtility.ANALYSIS_TC_COL_FAMILY,
 						HBaseUtility.TERM_COUNT_CREATED_COL,
 						Bytes.toBytes(this.runTime));
-				
-				StringBuilder geos = lonLatsMap.get(k, t);
-				if(geos != null && geos.length() > 0)	{
-					JSONObject jll = new JSONObject();
-					jll.put(ConstantsAndEnums.JSON_LONLAT_FIELD, geos.toString());
-					
+
+				List<JSONArray> geos = lonLatsMap.get(k, t);
+				if (geos != null && geos.size() > 0) {
+
 					p.add(HBaseUtility.ANALYSIS_TC_COL_FAMILY,
 							HBaseUtility.TERM_COUNT_REG_LONLAT,
-							Bytes.toBytes(jll.toJSONString()));
+							Bytes.toBytes(JSONValue.toJSONString(geos)));
 				}
 
 				context.write(null, p);
@@ -240,20 +234,20 @@ public class TermsCountToTableReduce extends TableReducer<Text, Text, Text> {
 		}
 	}
 
-	public byte[] getPartialRowKey(String dt, String term, AnalysisType a) {
+	private byte[] getRowKey(String dt, String term, AnalysisType a) {
 		byte[] rowKey = null;
 		try {
 			byte[] dateBytes = Bytes.toBytes(dt);
 			byte[] termInBytes = Bytes.toBytes(term);
 			byte[] aInBytes = Bytes.toBytes(a.toString());
 
-			int keyLength = dateBytes.length + termInBytes.length
-					+ aInBytes.length;
+			int keyLength = dateBytes.length + aInBytes.length
+					+ termInBytes.length;
 			rowKey = new byte[keyLength];
 			ByteBuffer target = ByteBuffer.wrap(rowKey);
 			target.put(dateBytes);
-			target.put(termInBytes);
 			target.put(aInBytes);
+			target.put(termInBytes);
 
 		} catch (Exception ex) {
 			throw new IllegalStateException("Error creating  row key", ex);
@@ -266,5 +260,6 @@ public class TermsCountToTableReduce extends TableReducer<Text, Text, Text> {
 	public void cleanup(TableReducer<Text, Text, Text>.Context context) {
 
 	}
+
 
 }

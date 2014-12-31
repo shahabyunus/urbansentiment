@@ -7,6 +7,8 @@ public class ConstantsAndEnums {
 	
 	public final static String JSON_TEXT_FIELD = "text";
 	public final static String JSON_LONLAT_FIELD = "lonlat";
+	public final static String JSON_LON_FIELD = "lon";
+	public final static String JSON_LAT_FIELD = "lat";
 	
 	public final static String RUN_TIME_CONFIG = "job.runtime";
 	

@@ -1,7 +1,7 @@
 package org.urbanstmt.stream.handlers;
 
 import org.urbanstmt.exception.TweetStatusParseException;
-import org.urbanstmt.exception.TweetStorageException;
+import org.urbanstmt.exception.twitter.TweetStorageException;
 import org.urbanstmt.model.twitter.TweetVO;
 import org.urbanstmt.parser.twitter.JsonTweetStatusParser;
 import org.urbanstmt.parser.twitter.TweetStatusParser;

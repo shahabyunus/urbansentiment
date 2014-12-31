@@ -12,7 +12,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.urbanstmt.exception.TweetStorageException;
+import org.urbanstmt.exception.twitter.TweetStorageException;
 import org.urbanstmt.util.ConstantsAndEnums;
 import org.urbanstmt.util.UtilFunctions;
 import org.urbanstmt.util.ConstantsAndEnums.DataDomainType;
