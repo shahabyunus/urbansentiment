@@ -14,7 +14,6 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
@@ -23,6 +22,7 @@ import org.urbanstmt.analytics.model.TermCountRow;
 import org.urbanstmt.analytics.model.TermCountRow.LonLatPair;
 import org.urbanstmt.analytics.store.AnalyticsStore;
 import org.urbanstmt.exception.AnalyticsStoreException;
+import org.urbanstmt.util.ConstantsAndEnums;
 import org.urbanstmt.util.hbase.HBaseUtility;
 
 import com.google.common.base.Strings;
@@ -35,6 +35,11 @@ public class HBaseAnalyticsStore implements AnalyticsStore {
 	private final Configuration conf;
 	private static final Properties p = new Properties();
 	private final String DATA_TABLE_NAME;
+
+	final private static int KEY_FIELD1_LEN = Bytes.toBytes("2000010100").length;
+	final private static int KEY_FIELD2_LEN = Bytes
+			.toBytes(ConstantsAndEnums.AnalysisType.TERMS_COUNT.toString()).length;
+	final private static int MIN_KEY_LEN = KEY_FIELD1_LEN + KEY_FIELD2_LEN;
 
 	ThreadLocal<JSONParser> parser = new ThreadLocal<JSONParser>();
 
@@ -64,9 +69,11 @@ public class HBaseAnalyticsStore implements AnalyticsStore {
 	}
 
 	@Override
-	public JSONObject getTermCountResults(String stime, String etime)
+	public List<TermCountRow> getTermCountResults(String stime, String etime)
 			throws AnalyticsStoreException {
 		HTable table = null;
+		List<TermCountRow> rows = new ArrayList<TermCountRow>();
+
 		try {
 			table = new HTable(conf, DATA_TABLE_NAME);
 			byte[] startRow = HBaseUtility.buildPartialAnalyticsTCRowKey(stime);
@@ -82,53 +89,24 @@ public class HBaseAnalyticsStore implements AnalyticsStore {
 			ResultScanner result = table.getScanner(scan);
 			byte[] cellValue = null;
 
-			String lonLats = null;
-			String regionInfo = null;
-			JSONArray lonLatsArray = null;
-			List<TermCountRow> rows = new ArrayList<TermCountRow>();
 			TermCountRow row = null;
 
 			for (Result r : result) {
-				
 				byte[] rowKey = r.getRow();
-				
+				row = new TermCountRow();
+				populateRowKeyFields(rowKey, row);
+
 				cellValue = r.getValue(HBaseUtility.ANALYSIS_TC_COL_FAMILY,
 						HBaseUtility.TERM_COUNT_REG_LONLAT);
 				if (cellValue != null) {
-					try {
-						regionInfo = Bytes.toString(cellValue);
-						lonLatsArray = (JSONArray) parser.get().parse(
-								regionInfo);
-
-						int s = lonLatsArray.size();
-						List<LonLatPair> lonLatPairs = new ArrayList<LonLatPair>(
-								s);
-						for (int index = 0; index < s; index++) {
-							JSONArray lonLatArray = (JSONArray) lonLatsArray
-									.get(index);
-							if (lonLatArray != null && lonLatArray.size() > 1) {
-								float lon = (Float) lonLatArray.get(0);
-								float lat = (Float) lonLatArray.get(1);
-
-								lonLatPairs.add(new LonLatPair(lon, lat));
-							}
-						}
-
-						row = new TermCountRow();
-						row.setLonLats(lonLatPairs);
-					} catch (ParseException pe) {
-						LOG.error("Invalid lon/lat info for this row="
-								+ lonLats + ". Going to skip it.");
-						continue;
-					}
+					populateLonLats(cellValue, row);
 				}
 
 				cellValue = r.getValue(HBaseUtility.ANALYSIS_TC_COL_FAMILY,
 						HBaseUtility.TERM_COUNT_SCORE_COL);
-				if (cellValue != null) {
-					float score = Bytes.toFloat(cellValue);
-					row.setScore(score);
-				}
+				populateScore(cellValue, row);
+
+				rows.add(row);
 
 			}
 
@@ -147,6 +125,69 @@ public class HBaseAnalyticsStore implements AnalyticsStore {
 				}
 			}
 		}
-		return null;
+		return rows;
+	}
+
+	private void populateScore(byte[] cellValue, TermCountRow row) {
+		if (cellValue == null) {
+			row.setScore(0);
+			return;
+		}
+		try {
+			float score = Bytes.toFloat(cellValue);
+			row.setScore(score);
+		} catch (Exception ex) {
+			row.setScore(0);
+		}
+	}
+
+	private void populateLonLats(byte[] cellValue, TermCountRow row) {
+		String regionInfo = null;
+		JSONArray lonLatsArray = null;
+		try {
+			regionInfo = Bytes.toString(cellValue);
+			lonLatsArray = (JSONArray) parser.get().parse(regionInfo);
+
+			int s = lonLatsArray.size();
+			List<LonLatPair> lonLatPairs = new ArrayList<LonLatPair>(s);
+			for (int index = 0; index < s; index++) {
+				JSONArray lonLatArray = (JSONArray) lonLatsArray.get(index);
+				if (lonLatArray != null && lonLatArray.size() > 1) {
+					try {
+						float lon = (Float) lonLatArray.get(0);
+						float lat = (Float) lonLatArray.get(1);
+
+						lonLatPairs.add(new LonLatPair(lon, lat));
+					} catch (Exception ex) {
+						LOG.error("This pair of lon/lat=" + lonLatArray
+								+ " for row=[" + row.getHour() + ","
+								+ row.getTerm()
+								+ "] is not valid. Skipping it.");
+					}
+				}
+			}
+
+			row.setLonLats(lonLatPairs);
+		} catch (ParseException pe) {
+			LOG.error("Invalid lon/lat info for this row=" + regionInfo
+					+ ". Going to skip it.");
+		}
+	}
+
+	private void populateRowKeyFields(byte[] k, TermCountRow r)
+			throws AnalyticsStoreException {
+		// Our key is stored as chunks of strings so we are ok here.
+		String strKey = Bytes.toString(k);
+
+		if (strKey.length() < MIN_KEY_LEN) {
+			throw new AnalyticsStoreException("Invalid row key=" + strKey);
+		}
+
+		r.setHour(strKey.substring(0, KEY_FIELD1_LEN));
+
+		if (strKey.length() > MIN_KEY_LEN) {
+			r.setTerm(strKey.substring(MIN_KEY_LEN));
+		}
+
 	}
 }
