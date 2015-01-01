@@ -83,7 +83,6 @@ public class SentimentService {
 						for (LonLatPair ll : lls) {
 							float lo = ll.getLon();
 							float la = ll.getLat();
-							LOG.info("lo=" + lo + ", la=" + la);
 							if ((Float.compare(lo, lonLat[0]) <= 0 && Float
 									.compare(la, lonLat[1]) <= 0)
 									&& (Float.compare(lo, lonLat[2]) >= 0 && Float
