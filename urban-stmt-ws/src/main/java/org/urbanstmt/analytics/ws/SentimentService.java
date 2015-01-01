@@ -80,30 +80,18 @@ public class SentimentService {
 				for (TermCountRow r : rows) {
 					List<LonLatPair> lls = r.getLonLats();
 					if (lls != null) {
-						for (LonLatPair ll : lls) {
-							float lo = ll.getLon();
-							float la = ll.getLat();
-							if ((Float.compare(lo, lonLat[0]) <= 0 && Float
-									.compare(la, lonLat[1]) <= 0)
-									&& (Float.compare(lo, lonLat[2]) >= 0 && Float
-											.compare(la, lonLat[3]) <= 0)
-									&& (Float.compare(lo, lonLat[4]) <= 0 && Float
-											.compare(la, lonLat[5]) >= 0)
-									&& (Float.compare(lo, lonLat[6]) >= 0 && Float
-											.compare(la, lonLat[7]) >= 0)) {
-								JSONObject res = new JSONObject();
-								res.put("hour", r.getHour());
-								res.put("score", r.getScore());
-								response.add(res);
-								break;
-							}
-						}
+						populateResponses(response, lonLat, r, lls);
 					}
 				}
 			}
 		} catch (Exception ex) {
 			LOG.error("There was an error", ex);
-			return Response.status(Status.BAD_REQUEST).build();
+			if (ex instanceof AnalyticsServiceBadRequestException) {
+				return Response.status(Status.BAD_REQUEST)
+						.entity(ex.getMessage()).build();
+			}
+			return Response.status(Status.INTERNAL_SERVER_ERROR)
+					.entity(ex.getMessage()).build();
 		}
 
 		JSONObject req = new JSONObject();
@@ -115,6 +103,29 @@ public class SentimentService {
 		responseParent.put("response", response);
 
 		return Response.ok(responseParent.toString()).build();
+	}
+
+	@SuppressWarnings("unchecked")
+	private void populateResponses(JSONArray response, float[] lonLat,
+			TermCountRow r, List<LonLatPair> lls) {
+		for (LonLatPair ll : lls) {
+			float lo = ll.getLon();
+			float la = ll.getLat();
+			if ((Float.compare(lo, lonLat[0]) <= 0 && Float.compare(la,
+					lonLat[1]) <= 0)
+					&& (Float.compare(lo, lonLat[2]) >= 0 && Float.compare(la,
+							lonLat[3]) <= 0)
+					&& (Float.compare(lo, lonLat[4]) <= 0 && Float.compare(la,
+							lonLat[5]) >= 0)
+					&& (Float.compare(lo, lonLat[6]) >= 0 && Float.compare(la,
+							lonLat[7]) >= 0)) {
+				JSONObject res = new JSONObject();
+				res.put("hour", r.getHour());
+				res.put("score", r.getScore());
+				response.add(res);
+				break;
+			}
+		}
 	}
 
 }
