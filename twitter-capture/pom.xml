@@ -38,6 +38,7 @@
 						</goals>
 						<configuration>
 							<includes>
+								org/urbanstmt/**,
 								twitter4j/**,
 								com/google/common/**,
 								org/json/**,

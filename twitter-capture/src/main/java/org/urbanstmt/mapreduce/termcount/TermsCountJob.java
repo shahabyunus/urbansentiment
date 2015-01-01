@@ -16,12 +16,11 @@ import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.urbanstmt.util.ConstantsAndEnums;
 import org.urbanstmt.util.UtilFunctions;
+
 import org.urbanstmt.util.hbase.HBaseUtility;
 
 import twitter4j.Logger;

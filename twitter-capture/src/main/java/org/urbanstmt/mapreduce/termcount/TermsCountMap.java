@@ -11,12 +11,15 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.Text;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.mortbay.log.Log;
 import org.urbanstmt.util.ConstantsAndEnums;
 import org.urbanstmt.util.hbase.HBaseUtility;
 
+import twitter4j.Logger;
+
 public class TermsCountMap extends TableMapper<Text, Text> {
 
+	private static final Logger LOG = Logger
+			.getLogger(TermsCountMap.class);
 	Text valueText = new Text();
 	Text keyText = new Text();
 

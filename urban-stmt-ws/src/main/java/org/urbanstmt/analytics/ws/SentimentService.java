@@ -11,6 +11,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import org.apache.commons.lang.StringUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.slf4j.Logger;
@@ -26,7 +27,7 @@ public class SentimentService {
 
 	private static final Logger LOG = LoggerFactory
 			.getLogger(SentimentService.class.getName());
-	private final static AnalyticsStore store = new HBaseAnalyticsStore();
+	private final AnalyticsStore store = new HBaseAnalyticsStore();
 
 	@SuppressWarnings("unchecked")
 	@GET
@@ -60,6 +61,9 @@ public class SentimentService {
 					lonLat[5] = Float.parseFloat(lonLatValues[5]);
 					lonLat[6] = Float.parseFloat(lonLatValues[6]);
 					lonLat[7] = Float.parseFloat(lonLatValues[7]);
+
+					LOG.info("The requested coords="
+							+ StringUtils.join(lonLatValues));
 				} catch (NumberFormatException nfe) {
 					throw new AnalyticsServiceBadRequestException(
 							"Invalid float lon/lat values for bounding box provided. What we got="
@@ -71,33 +75,37 @@ public class SentimentService {
 			}
 
 			List<TermCountRow> rows = store.getTermCountResults(stime, etime);
+			LOG.info("Number of records read=" + rows.size());
 			if (rows != null) {
 				for (TermCountRow r : rows) {
 					List<LonLatPair> lls = r.getLonLats();
 					if (lls != null) {
-						out:for (LonLatPair ll : lls) {
+						for (LonLatPair ll : lls) {
 							float lo = ll.getLon();
 							float la = ll.getLat();
-							
-							if(	(lo <= lonLat[0] && la <= lonLat[1]) &&
-									(lo >= lonLat[2] && la <= lonLat[3]) &&
-									(lo <= lonLat[4] && la >= lonLat[5]) &&
-									(lo >= lonLat[6] && la >= lonLat[7])	)	{
+							LOG.info("lo=" + lo + ", la=" + la);
+							if ((Float.compare(lo, lonLat[0]) <= 0 && Float
+									.compare(la, lonLat[1]) <= 0)
+									&& (Float.compare(lo, lonLat[2]) >= 0 && Float
+											.compare(la, lonLat[3]) <= 0)
+									&& (Float.compare(lo, lonLat[4]) <= 0 && Float
+											.compare(la, lonLat[5]) >= 0)
+									&& (Float.compare(lo, lonLat[6]) >= 0 && Float
+											.compare(la, lonLat[7]) >= 0)) {
 								JSONObject res = new JSONObject();
 								res.put("hour", r.getHour());
 								res.put("score", r.getScore());
 								response.add(res);
-								break out;
+								break;
 							}
 						}
 					}
-				}			}
+				}
+			}
 		} catch (Exception ex) {
 			LOG.error("There was an error", ex);
 			return Response.status(Status.BAD_REQUEST).build();
 		}
-
-		responseParent.put("response", response);
 
 		JSONObject req = new JSONObject();
 		req.put("type", type);
@@ -105,6 +113,7 @@ public class SentimentService {
 		req.put("stime", stime);
 		req.put("etime", etime);
 		responseParent.put("request", req);
+		responseParent.put("response", response);
 
 		return Response.ok(responseParent.toString()).build();
 	}

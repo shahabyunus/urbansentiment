@@ -149,14 +149,22 @@ public class TermsCountToTableReduce extends TableReducer<Text, Text, Text> {
 				continue;
 			}
 
-			JSONArray lonLatJson = (JSONArray) object
+			String lonLatStr = (String) object
 					.get(ConstantsAndEnums.JSON_LONLAT_FIELD);
+
+			JSONArray lonLatJson = null;
+			try {
+				lonLatJson = (JSONArray) parser.parse(lonLatStr);
+			} catch (Exception e) {
+				LOG.error("Invalid json lon/lat value=" + lonLatStr);
+				continue;
+			}
 
 			Map<String, Integer> termsCountPerDate = termsCountMap.rowMap()
 					.get(k);
 
-			Map<String, List<JSONArray>> termsLonLatsPerDate = lonLatsMap.rowMap()
-					.get(k);
+			Map<String, List<JSONArray>> termsLonLatsPerDate = lonLatsMap
+					.rowMap().get(k);
 
 			if (termsCountPerDate == null) {
 				termsCountPerDate = new HashMap<String, Integer>();
@@ -260,6 +268,5 @@ public class TermsCountToTableReduce extends TableReducer<Text, Text, Text> {
 	public void cleanup(TableReducer<Text, Text, Text>.Context context) {
 
 	}
-
 
 }

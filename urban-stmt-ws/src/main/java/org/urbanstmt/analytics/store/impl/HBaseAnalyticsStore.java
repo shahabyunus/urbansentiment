@@ -41,7 +41,7 @@ public class HBaseAnalyticsStore implements AnalyticsStore {
 			.toBytes(ConstantsAndEnums.AnalysisType.TERMS_COUNT.toString()).length;
 	final private static int MIN_KEY_LEN = KEY_FIELD1_LEN + KEY_FIELD2_LEN;
 
-	ThreadLocal<JSONParser> parser = new ThreadLocal<JSONParser>();
+	final static private ThreadLocal<JSONParser> parser = new ThreadLocal<JSONParser>();
 
 	public HBaseAnalyticsStore() {
 
@@ -66,6 +66,7 @@ public class HBaseAnalyticsStore implements AnalyticsStore {
 		LOG.info("Hbase Table name=" + tableName);
 		DATA_TABLE_NAME = tableName;
 		conf = HBaseConfiguration.create();
+		parser.set(new JSONParser());
 	}
 
 	@Override
@@ -154,15 +155,15 @@ public class HBaseAnalyticsStore implements AnalyticsStore {
 				JSONArray lonLatArray = (JSONArray) lonLatsArray.get(index);
 				if (lonLatArray != null && lonLatArray.size() > 1) {
 					try {
-						float lon = (Float) lonLatArray.get(0);
-						float lat = (Float) lonLatArray.get(1);
+						float lon = ((Number) lonLatArray.get(0)).floatValue();
+						float lat = ((Number) lonLatArray.get(1)).floatValue();
 
 						lonLatPairs.add(new LonLatPair(lon, lat));
 					} catch (Exception ex) {
 						LOG.error("This pair of lon/lat=" + lonLatArray
 								+ " for row=[" + row.getHour() + ","
 								+ row.getTerm()
-								+ "] is not valid. Skipping it.");
+								+ "] is not valid. Error="+ex.getMessage()+".Skipping it.");
 					}
 				}
 			}
