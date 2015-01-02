@@ -14,8 +14,8 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.urbanstmt.exception.twitter.TweetStorageException;
 import org.urbanstmt.util.ConstantsAndEnums;
-import org.urbanstmt.util.UtilFunctions;
 import org.urbanstmt.util.ConstantsAndEnums.DataDomainType;
+import org.urbanstmt.util.UtilFunctions;
 import org.urbanstmt.util.hbase.HBaseUtility;
 
 import twitter4j.Logger;
@@ -71,7 +71,8 @@ public class CSVImport2HBaseMap extends
 		long createdAt = -1;
 		try {
 			// e.g. date: "Tue Nov 26 02:59:01 UTC 2013"
-			createdAt = format.parse(UtilFunctions.stripQuotes(utcDateTime)).getTime();
+			createdAt = format.parse(UtilFunctions.stripQuotes(utcDateTime))
+					.getTime();
 		} catch (ParseException pe) {
 			LOG.error("Error parseing tweet creation time=" + utcDateTime, pe);
 			return;
@@ -105,8 +106,8 @@ public class CSVImport2HBaseMap extends
 
 			try {
 				p.add(HBaseUtility.TWEET_COL_FAMILY,
-						HBaseUtility.TWEET_USERID_COL,
-						Bytes.toBytes(Long.parseLong(UtilFunctions.stripQuotes(userId))));
+						HBaseUtility.TWEET_USERID_COL, Bytes.toBytes(Long
+								.parseLong(UtilFunctions.stripQuotes(userId))));
 			} catch (NumberFormatException nfe) {
 				LOG.error("Error parsing user id to long. Ignoring the field="
 						+ userId, nfe);
@@ -132,6 +133,5 @@ public class CSVImport2HBaseMap extends
 		context.write(writeKey, p);
 
 	}
-	
 
 }

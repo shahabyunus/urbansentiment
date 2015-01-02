@@ -1,5 +1,8 @@
 package org.urbanstmt.analytics.ws;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 import javax.ws.rs.GET;
@@ -21,6 +24,7 @@ import org.urbanstmt.analytics.model.TermCountRow;
 import org.urbanstmt.analytics.model.TermCountRow.LonLatPair;
 import org.urbanstmt.analytics.store.AnalyticsStore;
 import org.urbanstmt.analytics.store.impl.HBaseAnalyticsStore;
+import org.urbanstmt.util.ConstantsAndEnums;
 
 @Path("/getdata")
 public class SentimentService {
@@ -40,6 +44,9 @@ public class SentimentService {
 		JSONObject responseParent = new JSONObject();
 		JSONArray response = new JSONArray();
 		try {
+
+			validateDateTimeParams(stime, etime);
+
 			float[] lonLat = new float[8];
 
 			if (bbox != null) {
@@ -105,9 +112,32 @@ public class SentimentService {
 		return Response.ok(responseParent.toString()).build();
 	}
 
+	private void validateDateTimeParams(String stime, String etime)
+			throws AnalyticsServiceBadRequestException {
+		SimpleDateFormat format = new SimpleDateFormat(
+				ConstantsAndEnums.WS_DATE_RANGE_FORMAT);
+		try {
+			Date sdt = format.parse(stime);
+			Date edt = format.parse(etime);
+
+			if (sdt.after(edt)) {
+				throw new AnalyticsServiceBadRequestException(
+						"Invalid data parameters provided. Start value is greater than end value. We got the range=["
+								+ sdt + "," + edt + "]");
+			}
+		} catch (ParseException e) {
+			throw new AnalyticsServiceBadRequestException(
+					"Invalid data parameters provided. They should be in the format="
+							+ ConstantsAndEnums.WS_DATE_RANGE_FORMAT
+							+ ". But we got=[" + stime + "," + etime + "]");
+		}
+	}
+
 	@SuppressWarnings("unchecked")
 	private void populateResponses(JSONArray response, float[] lonLat,
 			TermCountRow r, List<LonLatPair> lls) {
+
+		JSONArray regionInfos = new JSONArray();
 		for (LonLatPair ll : lls) {
 			float lo = ll.getLon();
 			float la = ll.getLat();
@@ -119,13 +149,18 @@ public class SentimentService {
 							lonLat[5]) >= 0)
 					&& (Float.compare(lo, lonLat[6]) >= 0 && Float.compare(la,
 							lonLat[7]) >= 0)) {
-				JSONObject res = new JSONObject();
-				res.put("hour", r.getHour());
-				res.put("score", r.getScore());
-				response.add(res);
-				break;
+				JSONArray regionInfo = new JSONArray();
+				regionInfo.add(lo);
+				regionInfo.add(la);
+				regionInfos.add(regionInfo);
 			}
 		}
+
+		JSONObject res = new JSONObject();
+		res.put("hour", r.getHour());
+		res.put("score", r.getScore());
+		res.put("regions", regionInfos);
+		response.add(res);
 	}
 
 }

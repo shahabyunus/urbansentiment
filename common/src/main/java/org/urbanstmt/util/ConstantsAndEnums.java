@@ -4,6 +4,8 @@ public class ConstantsAndEnums {
 	
 	public final static String SIMPLE_DATETIME_FORMAT = "yyyy-MM-dd-HH:mm:ss";
 	public final static String CSV_IMPOR_DATETIME_FORMAT = "EEE MMM dd hh:mm:ss Z yyyy";
+	public final static String WS_DATE_RANGE_FORMAT = "yyyyMMddhh";
+
 	
 	public final static String JSON_TEXT_FIELD = "text";
 	public final static String JSON_LONLAT_FIELD = "lonlat";

@@ -14,7 +14,7 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.urbanstmt.exception.TweetStorageException;
+import org.urbanstmt.exception.twitter.TweetStorageException;
 import org.urbanstmt.model.twitter.CoordinatesVO;
 import org.urbanstmt.model.twitter.PlaceVO;
 import org.urbanstmt.model.twitter.TweetVO;
