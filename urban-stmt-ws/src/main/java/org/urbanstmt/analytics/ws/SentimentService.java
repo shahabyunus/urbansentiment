@@ -33,6 +33,16 @@ public class SentimentService {
 			.getLogger(SentimentService.class.getName());
 	private final AnalyticsStore store = new HBaseAnalyticsStore();
 
+	private final ThreadLocal<SimpleDateFormat> dateFormatter = new ThreadLocal<SimpleDateFormat>() {
+		@Override
+		protected SimpleDateFormat initialValue() {
+			SimpleDateFormat formatter = new SimpleDateFormat(
+					ConstantsAndEnums.WS_DATE_RANGE_FORMAT);
+			formatter.setLenient(false);
+			return formatter;
+		}
+	};
+
 	@SuppressWarnings("unchecked")
 	@GET
 	@Path("{type}")
@@ -114,11 +124,11 @@ public class SentimentService {
 
 	private void validateDateTimeParams(String stime, String etime)
 			throws AnalyticsServiceBadRequestException {
-		SimpleDateFormat format = new SimpleDateFormat(
-				ConstantsAndEnums.WS_DATE_RANGE_FORMAT);
+
+		SimpleDateFormat formatter = dateFormatter.get();
 		try {
-			Date sdt = format.parse(stime);
-			Date edt = format.parse(etime);
+			Date sdt = formatter.parse(stime);
+			Date edt = formatter.parse(etime);
 
 			if (sdt.after(edt)) {
 				throw new AnalyticsServiceBadRequestException(

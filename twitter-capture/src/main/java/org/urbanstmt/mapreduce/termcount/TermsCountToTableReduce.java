@@ -89,7 +89,6 @@ public class TermsCountToTableReduce extends TableReducer<Text, Text, Text> {
 				Float score = Float.parseFloat(term[1]);
 				this.termsScore.put(term[0].toLowerCase(), score);
 
-				LOG.info("term=" + term[0] + ", score=" + term[1]);
 			} catch (Exception ex) {
 				LOG.error("Error in capturing term score for line (" + l
 						+ ") in the terms score files. Wull use default of 1.");
@@ -156,7 +155,9 @@ public class TermsCountToTableReduce extends TableReducer<Text, Text, Text> {
 			try {
 				lonLatJson = (JSONArray) parser.parse(lonLatStr);
 			} catch (Exception e) {
-				LOG.error("Invalid json lon/lat value=" + lonLatStr);
+				if(LOG.isDebugEnabled())	{
+					LOG.debug("Invalid json lon/lat value=" + lonLatStr);
+				}
 				continue;
 			}
 
@@ -240,6 +241,10 @@ public class TermsCountToTableReduce extends TableReducer<Text, Text, Text> {
 				context.write(null, p);
 			}
 		}
+		
+		//Purge the memory as we don't need it for the subsequent calls.
+		//This map takes up lot of space.
+		lonLatsMap.clear();
 	}
 
 	private byte[] getRowKey(String dt, String term, AnalysisType a) {

@@ -1,7 +1,9 @@
 package org.urbanstmt.mapreduce.termcount;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.ByteBuffer;
 import java.util.Date;
@@ -20,7 +22,6 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.urbanstmt.util.ConstantsAndEnums;
 import org.urbanstmt.util.UtilFunctions;
-
 import org.urbanstmt.util.hbase.HBaseUtility;
 
 import twitter4j.Logger;
@@ -32,7 +33,7 @@ public class TermsCountJob extends Configured implements Tool {
 	private final String tableName;
 	private final Date stDate;
 	private final Date enDate;
-	private final String[] terms;
+	private final String inputTermsPath;
 
 	private final static String OUTPUT_PATH = "output";
 	private final static String RES_ANALYSIS_TABLE_NAME = "tc_result";
@@ -41,11 +42,11 @@ public class TermsCountJob extends Configured implements Tool {
 	public final static String TERMS_SCORES_FILE_PATH = "termsscores.txt";
 
 	public TermsCountJob(Configuration conf, Date stDate, Date enDate,
-			String[] terms, String tableName) {
+			String terms, String tableName) {
 		super(conf);
 		this.stDate = stDate;
 		this.enDate = enDate;
-		this.terms = terms;
+		this.inputTermsPath = terms;
 		this.tableName = tableName;
 	}
 
@@ -60,8 +61,9 @@ public class TermsCountJob extends Configured implements Tool {
 		Job job = Job.getInstance(conf);
 
 		job.setJarByClass(TermsCountJob.class);
-		job.getConfiguration().setLong(ConstantsAndEnums.RUN_TIME_CONFIG, System.currentTimeMillis() / 1000);
-		
+		job.getConfiguration().setLong(ConstantsAndEnums.RUN_TIME_CONFIG,
+				System.currentTimeMillis() / 1000);
+
 		Scan scan = new Scan();
 
 		byte[] rowKey = getPartialRowKey(this.stDate);
@@ -90,13 +92,14 @@ public class TermsCountJob extends Configured implements Tool {
 		TableMapReduceUtil.initTableReducerJob(RES_ANALYSIS_TABLE_NAME,
 				TermsCountToTableReduce.class, job);
 
-		/* job.setReducerClass(TermsCountReduce.class);
-		FileOutputFormat.setOutputPath(job, new Path(System.currentTimeMillis()
-				+ "/" + OUTPUT_PATH));
-		job.setMapOutputKeyClass(Text.class);
-		job.setMapOutputValueClass(Text.class);
-		job.setOutputFormatClass(TextOutputFormat.class);
-		*/
+		/*
+		 * job.setReducerClass(TermsCountReduce.class);
+		 * FileOutputFormat.setOutputPath(job, new
+		 * Path(System.currentTimeMillis() + "/" + OUTPUT_PATH));
+		 * job.setMapOutputKeyClass(Text.class);
+		 * job.setMapOutputValueClass(Text.class);
+		 * job.setOutputFormatClass(TextOutputFormat.class);
+		 */
 
 		job.setNumReduceTasks(3);
 
@@ -115,14 +118,26 @@ public class TermsCountJob extends Configured implements Tool {
 			fs.delete(termsPath, true);
 		}
 
-		BufferedWriter br = new BufferedWriter(new OutputStreamWriter(
-				fs.create(termsPath, true)));
-
-		for (String t : terms) {
-			br.write(t.toLowerCase());
-			br.write(",");
+		Path termsInputPath = new Path(this.inputTermsPath);
+		if (!fs.exists(termsInputPath)) {
+			throw new IOException("Input file for terms does not exist at="
+					+ termsInputPath);
 		}
 
+		BufferedReader br = new BufferedReader(new InputStreamReader(
+				fs.open(termsInputPath)));
+
+		BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
+				fs.create(termsPath, true)));
+
+		String line;
+		while ((line = br.readLine()) != null) {
+
+			bw.write(line.trim().toLowerCase());
+			bw.write(",");
+		}
+
+		bw.close();
 		br.close();
 
 		job.addCacheFile(termsPath.toUri());
@@ -194,17 +209,17 @@ public class TermsCountJob extends Configured implements Tool {
 			throw new IllegalStateException("Invalid dates");
 		}
 
-		String termsStr = args[2];
+		String inputTermsPath = args[2];
 		String tableName = args[3];
 
 		LOG.info("Start date=" + stDate);
 		LOG.info("End date=" + enDate);
 		LOG.info("Table name=" + tableName);
-		LOG.info("Search terms are=" + termsStr);
+		LOG.info("Search terms are=" + inputTermsPath);
 
 		Configuration conf = new Configuration();
 		int exitCode = ToolRunner.run(conf, new TermsCountJob(conf, stDate,
-				enDate, termsStr.split(","), tableName), args);
+				enDate, inputTermsPath, tableName), args);
 		System.exit(exitCode);
 	}
 }
